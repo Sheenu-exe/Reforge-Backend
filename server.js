@@ -12,19 +12,32 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://reforge-gamma.vercel.app'], // Remove trailing slash and fix array syntax
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true // Enable if you're using cookies or authentication
-}));
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? ['https://reforge-gamma.vercel.app']
+  : ['http://localhost:3000', 'https://reforge-gamma.vercel.app'];
+
+
+  app.use(cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Database connection with error handling
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/HabitTracker', {
+mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://pariharsachin5002:<8668369314>@reforgedatabase.5ckzo.mongodb.net/', {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
