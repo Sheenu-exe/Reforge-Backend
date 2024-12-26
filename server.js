@@ -36,19 +36,21 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Database connection with error handling
-mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://pariharsachin5002:<8668369314>@reforgedatabase.5ckzo.mongodb.net/', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => {
-  console.log('Successfully connected to MongoDB');
-})
-.catch((error) => {
-  console.error('MongoDB connection error:', error);
-  process.exit(1);
-});
+const mongoURI = process.env.MONGODB_URI;
+console.log('Attempting to connect with URI:', mongoURI ? 'URI exists' : 'URI is undefined');
 
+mongoose.connect(mongoURI)
+  .then(() => {
+    console.log('Successfully connected to MongoDB');
+  })
+  .catch((error) => {
+    console.error('Detailed MongoDB connection error:', {
+      name: error.name,
+      message: error.message,
+      code: error.code
+    });
+    process.exit(1);
+  });
 // Error handling for subsequent MongoDB errors
 mongoose.connection.on('error', err => {
   console.error('MongoDB connection error:', err);
