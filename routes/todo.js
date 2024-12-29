@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const { verifyAuth } = require('../firebaseAdmin');
 
-// Create Todo Schema
 const todoSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -20,6 +20,11 @@ const todoSchema = new mongoose.Schema({
   completed: {
     type: Boolean,
     default: false
+  },
+  userId: {
+    type: String,
+    required: true,
+    index: true
   }
 }, {
   timestamps: true
@@ -27,23 +32,28 @@ const todoSchema = new mongoose.Schema({
 
 const Todo = mongoose.model('Todo', todoSchema);
 
-// Get all todos
+// Middleware to verify auth
+router.use(verifyAuth);
+
+// Get todos for current user
 router.get('/', async (req, res) => {
   try {
-    const todos = await Todo.find().sort({ dueDate: 1 });
+    const todos = await Todo.find({ userId: req.user.uid })
+      .sort({ dueDate: 1 });
     res.json(todos);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Create a new todo
+// Create new todo
 router.post('/', async (req, res) => {
   const todo = new Todo({
     name: req.body.name,
     dueDate: req.body.dueDate,
     priority: req.body.priority,
-    completed: req.body.completed || false
+    completed: req.body.completed || false,
+    userId: req.user.uid // Use the authenticated user's ID
   });
 
   try {
@@ -54,12 +64,16 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update a todo
+// Update todo
 router.put('/:id', async (req, res) => {
   try {
-    const todo = await Todo.findById(req.params.id);
+    const todo = await Todo.findOne({
+      _id: req.params.id,
+      userId: req.user.uid // Ensure todo belongs to user
+    });
+
     if (!todo) {
-      return res.status(404).json({ message: 'Todo not found' });
+      return res.status(404).json({ message: 'Todo not found or unauthorized' });
     }
 
     if (req.body.name) todo.name = req.body.name;
@@ -74,12 +88,16 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete a todo
+// Delete todo
 router.delete('/:id', async (req, res) => {
   try {
-    const todo = await Todo.findById(req.params.id);
+    const todo = await Todo.findOne({
+      _id: req.params.id,
+      userId: req.user.uid // Ensure todo belongs to user
+    });
+
     if (!todo) {
-      return res.status(404).json({ message: 'Todo not found' });
+      return res.status(404).json({ message: 'Todo not found or unauthorized' });
     }
 
     await todo.deleteOne();

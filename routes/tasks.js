@@ -1,12 +1,38 @@
+const mongoose = require('mongoose');
 
+const scheduleSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true
+  },
+  scheduleItems: [{
+    time: String,
+    activity: String
+  }],
+  notes: String,
+  userId: {
+    type: String,
+    required: true,
+    index: true // Add index for better query performance
+  }
+}, {
+  timestamps: true
+});
+
+const Schedule = mongoose.model('Schedule', scheduleSchema);
+
+// Updated Express Router
 const express = require('express');
 const router = express.Router();
-const Schedule = require('../models/schedule');
+const { verifyAuth } = require('../firebaseAdmin');
 
-// Get all schedules
+// Apply auth middleware to all routes
+router.use(verifyAuth);
+
+// Get user's schedules
 router.get('/', async (req, res) => {
   try {
-    const schedules = await Schedule.find();
+    const schedules = await Schedule.find({ userId: req.user.uid });
     res.json(schedules);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -18,7 +44,8 @@ router.post('/', async (req, res) => {
   const schedule = new Schedule({
     title: req.body.title,
     scheduleItems: req.body.scheduleItems,
-    notes: req.body.notes
+    notes: req.body.notes,
+    userId: req.user.uid // Add user ID from verified token
   });
 
   try {
@@ -32,7 +59,11 @@ router.post('/', async (req, res) => {
 // Get a specific schedule
 router.get('/:id', async (req, res) => {
   try {
-    const schedule = await Schedule.findById(req.params.id);
+    const schedule = await Schedule.findOne({ 
+      _id: req.params.id,
+      userId: req.user.uid // Ensure user owns the schedule
+    });
+    
     if (!schedule) {
       return res.status(404).json({ message: 'Schedule not found' });
     }
@@ -45,18 +76,18 @@ router.get('/:id', async (req, res) => {
 // Delete a schedule
 router.delete('/:id', async (req, res) => {
   try {
-    console.log('Delete request for task:', req.params.id);
+    const schedule = await Schedule.findOne({ 
+      _id: req.params.id,
+      userId: req.user.uid // Ensure user owns the schedule
+    });
     
-    const task = await Task.findByIdAndDelete(req.params.id);
-    console.log('Delete result:', task);
-    
-    if (!task) {
-      return res.status(404).json({ message: 'Task not found' });
+    if (!schedule) {
+      return res.status(404).json({ message: 'Schedule not found' });
     }
     
-    res.json({ message: 'Task deleted successfully' });
+    await schedule.deleteOne();
+    res.json({ message: 'Schedule deleted successfully' });
   } catch (error) {
-    console.error('Delete error:', error);
     res.status(500).json({ message: error.message });
   }
 });

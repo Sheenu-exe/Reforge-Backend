@@ -5,7 +5,7 @@ const cors = require('cors');
 const habitRoutes = require('./routes/habits');
 const todoRoutes = require('./routes/todo');
 const taskRoutes = require('./routes/tasks');
-
+require('./firebaseAdmin')
 // Load environment variables
 dotenv.config();
 
